@@ -19,5 +19,6 @@
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" HorizontalAlignment="Center" Height="434" VerticalAlignment="Bottom">
             <UniformGrid  x:Name="GameGrid" Margin="2" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </ScrollViewer>
+        <Slider x:Name="GenerationSlider" Minimum="0" ValueChanged="GenerationSlider_ValueChanged" Margin="10,381,10,10"/>
     </Grid>
 </Window>

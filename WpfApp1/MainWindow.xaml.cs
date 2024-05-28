@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,45 +13,51 @@ namespace WpfApp1
 {
     public partial class MainWindow : Window
     {
-        private bool[,] _currentGeneration; // Matrice représentant la génération actuelle
-        private bool[,] _nextGeneration; // Matrice représentant la prochaine génération
-        private int _rows; // Nombre de lignes dans la grille
-        private int _cols; // Nombre de colonnes dans la grille
-        private const int CellSize = 20; // Taille des cellules dans la grille
-        private DispatcherTimer _timer; // Timer pour contrôler l'itération des générations
-        private int _iterations; // Compteur pour le nombre d'itérations
-        private bool _isGameRunning; // Indicateur pour savoir si le jeu est en cours d'exécution
+        // Grilles pour stocker les générations actuelle et suivante
+        private bool[,] _currentGeneration;
+        private bool[,] _nextGeneration;
+        private int _rows;
+        private int _cols;
+        private const int CellSize = 20; // Taille d'une cellule en pixels
+        private DispatcherTimer _timer; // Timer pour les itérations du jeu
+        private int _iterations; // Compteur d'itérations
+        private bool _isGameRunning; // Indicateur de l'état du jeu
+        private List<bool[,]> _generationHistory; // Liste pour stocker les générations
 
         public MainWindow()
         {
             InitializeComponent();
+            _generationHistory = new List<bool[,]>();
             try
             {
-                // Méthode pour charger l'état initial de la grille depuis un fichier
+                // Charge l'état initial depuis un fichier
                 LoadInitialState("C:\\Users\\maxim\\OneDrive\\Bureau\\input.txt");
-                // Initialisation de la grille graphique
+                // Initialise la grille UI
                 InitializeGrid();
-                // Initialiser le timer mais ne pas démarrer immédiatement
+                // Initialise le timer
                 InitializeTimer();
-                // Initialiser l'indicateur de jeu
-                _isGameRunning = false;
+                _isGameRunning = false; // Jeu initialement en pause
             }
             catch (Exception ex)
             {
+                // Affiche un message d'erreur si le chargement échoue
                 MessageBox.Show(ex.Message, "Erreur de chargement", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        // Méthode pour charger l'état initial de la grille depuis un fichier
+        // Charge l'état initial depuis un fichier
         private void LoadInitialState(string filePath)
         {
-            var lines = File.ReadAllLines(filePath); // Lire toutes les lignes du fichier
+            var lines = File.ReadAllLines(filePath); // Lit toutes les lignes du fichier
+
+            // Vérifie si le fichier contient au moins deux lignes (une pour la taille et une pour la matrice)
             if (lines.Length < 2)
             {
                 throw new Exception("Le fichier doit contenir au moins deux lignes.");
             }
 
-            var size = lines[0].Split(' ').Select(int.Parse).ToArray(); // Lire la taille de la grille
+            // Sépare la première ligne en deux entiers représentant les dimensions de la grille
+            var size = lines[0].Split(' ').Select(int.Parse).ToArray();
             if (size.Length != 2)
             {
                 throw new Exception("La première ligne du fichier doit contenir exactement deux entiers.");
@@ -58,17 +65,19 @@ namespace WpfApp1
 
             _rows = size[0];
             _cols = size[1];
-            _currentGeneration = new bool[_rows, _cols];
-            _nextGeneration = new bool[_rows, _cols];
+            _currentGeneration = new bool[_rows, _cols]; // Initialise la grille de la génération actuelle
+            _nextGeneration = new bool[_rows, _cols]; // Initialise la grille de la prochaine génération
 
+            // Vérifie si le nombre de lignes dans le fichier correspond au nombre de lignes spécifié
             if (lines.Length - 1 != _rows)
             {
                 throw new Exception("Le nombre de lignes spécifié ne correspond pas au nombre de lignes dans la matrice.");
             }
 
+            // Remplit la grille de la génération actuelle avec les données du fichier
             for (int i = 0; i < _rows; i++)
             {
-                var line = lines[i + 1]; // Lire chaque ligne du fichier pour obtenir l'état des cellules
+                var line = lines[i + 1];
                 if (line.Length != _cols)
                 {
                     throw new Exception($"La longueur de la ligne {i + 2} ne correspond pas au nombre de colonnes spécifié.");
@@ -83,17 +92,20 @@ namespace WpfApp1
                     _currentGeneration[i, j] = line[j] == '1';
                 }
             }
-            // Mettre à jour les TextBlock pour afficher le nombre de lignes et de colonnes
+
+            // Met à jour les textes des labels pour le nombre de lignes et de colonnes
             RowCountText.Text = _rows.ToString();
             ColCountText.Text = _cols.ToString();
         }
 
+        // Initialise la grille UI
         private void InitializeGrid()
         {
-            GameGrid.Rows = _rows; // Définir le nombre de lignes dans la grille
-            GameGrid.Columns = _cols; // Définir le nombre de colonnes dans la grille
-            GameGrid.Children.Clear();
+            GameGrid.Rows = _rows; // Définit le nombre de lignes de la grille
+            GameGrid.Columns = _cols; // Définit le nombre de colonnes de la grille
+            GameGrid.Children.Clear(); // Vide la grille actuelle
 
+            // Remplit la grille avec des cellules initialisées selon l'état initial
             for (int i = 0; i < _rows; i++)
             {
                 for (int j = 0; j < _cols; j++)
@@ -105,92 +117,122 @@ namespace WpfApp1
                         Background = _currentGeneration[i, j] ? Brushes.Black : Brushes.White,
                         BorderBrush = Brushes.Gray,
                         BorderThickness = new Thickness(0.5),
-                        Margin = new Thickness(1) // Ajouter un espacement de 1 pixel autour de chaque cellule
+                        Margin = new Thickness(1) // Ajoute un espace entre les cellules
                     };
-                    GameGrid.Children.Add(cell); // Ajouter la cellule à la grille
+                    GameGrid.Children.Add(cell); // Ajoute la cellule à la grille
                 }
             }
         }
 
+        // Initialise le timer pour les itérations du jeu
         private void InitializeTimer()
         {
             _timer = new DispatcherTimer();
-            _timer.Interval = TimeSpan.FromMilliseconds(500); // Définir l'intervalle de temps pour chaque génération
-            _timer.Tick += (s, e) => NextGeneration(); // Définir l'événement à exécuter à chaque tick du timer
+            _timer.Interval = TimeSpan.FromMilliseconds(500); // Définit l'intervalle entre les itérations
+            // Utilise le pattern Observer pour notifier l'événement `Tick`
+            _timer.Tick += (s, e) => NextGeneration();
         }
 
+        // Démarre le jeu
         private void StartGame()
         {
             if (!_isGameRunning)
             {
-                _timer.Start(); // Démarrer le timer
-                _isGameRunning = true; // Mettre à jour l'indicateur de jeu
+                _timer.Start(); // Démarre le timer
+                _isGameRunning = true; // Met à jour l'état du jeu
             }
         }
 
+        // Met le jeu en pause
         private void PauseGame()
         {
-            _timer.Stop(); // Arrêter le timer
-            _isGameRunning = false; // Mettre à jour l'indicateur de jeu
+            _timer.Stop(); // Arrête le timer
+            _isGameRunning = false; // Met à jour l'état du jeu
         }
 
+        // Gestionnaire d'événement pour le bouton Play
         private void PlayButton_Click(object sender, RoutedEventArgs e)
         {
-            StartGame();
+            if (_generationHistory.Count > 0)
+            {
+                int generationIndex = (int)GenerationSlider.Value;
+                if (generationIndex < _generationHistory.Count)
+                {
+                    _currentGeneration = _generationHistory[generationIndex];
+                    _iterations = generationIndex;
+                    IterationCountText.Text = _iterations.ToString();
+                    StartGame();
+                }
+            }
+            else
+            {
+                StartGame();
+            }
         }
 
+
+
+        // Gestionnaire d'événement pour le bouton Pause
         private void PauseButton_Click(object sender, RoutedEventArgs e)
         {
             PauseGame();
         }
 
+        // Gestionnaire d'événement pour le bouton Load
         private void LoadButton_Click(object sender, RoutedEventArgs e)
         {
-            PauseGame();
+            PauseGame(); // Met le jeu en pause avant de charger un nouvel état
 
             OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.Filter = "Text files (*.txt)|*.txt";
+            openFileDialog.Filter = "Text files (*.txt)|*.txt"; // Filtre les fichiers texte
             if (openFileDialog.ShowDialog() == true)
             {
                 try
                 {
+                    // Charge un nouvel état initial depuis un fichier
                     LoadInitialState(openFileDialog.FileName);
+                    // Réinitialise la grille UI
                     InitializeGrid();
-                    _iterations = 0;
+                    _iterations = 0; // Réinitialise le compteur d'itérations
                     IterationCountText.Text = _iterations.ToString();
                 }
                 catch (Exception ex)
                 {
+                    // Affiche un message d'erreur si le chargement échoue
                     MessageBox.Show(ex.Message, "Erreur de chargement", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
 
+        // Calcule la prochaine génération du jeu
         private void NextGeneration()
         {
-            bool isSameGeneration = true;
+            bool isSameGeneration = true; // Indicateur si la génération est identique à la précédente
 
-            Parallel.For(0, _rows, i => // Parallélisation du calcul de la prochaine génération
+            // Utilise le parallélisme pour améliorer les performances
+            Parallel.For(0, _rows, i =>
             {
                 for (int j = 0; j < _cols; j++)
                 {
-                    int liveNeighbors = CountLiveNeighbors(i, j); // Compter les voisins vivants
+                    int liveNeighbors = CountLiveNeighbors(i, j); // Compte les voisins vivants
                     if (_currentGeneration[i, j])
                     {
-                        _nextGeneration[i, j] = liveNeighbors == 2 || liveNeighbors == 3; // Règle de survie
+                        _nextGeneration[i, j] = liveNeighbors == 2 || liveNeighbors == 3;
                     }
                     else
                     {
-                        _nextGeneration[i, j] = liveNeighbors == 3; // Règle de naissance
+                        _nextGeneration[i, j] = liveNeighbors == 3;
                     }
 
+                    // Vérifie si la nouvelle génération est différente de l'actuelle
                     if (_nextGeneration[i, j] != _currentGeneration[i, j])
                     {
-                        isSameGeneration = false; // Détecter un changement dans la génération
+                        isSameGeneration = false;
                     }
                 }
             });
 
+            // Si la génération est la même que la précédente, arrête le jeu
             if (isSameGeneration)
             {
                 PauseGame();
@@ -198,22 +240,51 @@ namespace WpfApp1
                 return;
             }
 
-            // Mettre à jour la grille et échanger les générations
+            Array.Copy(_nextGeneration, _currentGeneration, _currentGeneration.Length);
+            UpdateGrid();
+            AddGenerationToHistory();
+
+            _iterations++; // Incrémente le compteur d'itérations
+            IterationCountText.Text = _iterations.ToString(); // Met à jour l'affichage du compteur
+            GenerationSlider.Value = _iterations;
+            GenerationSlider.Maximum = _iterations; // Mettre à jour le slider
+        }
+
+        private void UpdateGrid()
+        {
             for (int i = 0; i < _rows; i++)
             {
                 for (int j = 0; j < _cols; j++)
                 {
-                    var cell = (Border)GameGrid.Children[i * _cols + j]; // Récupérer la cellule dans la grille
-                    cell.Background = _nextGeneration[i, j] ? Brushes.Black : Brushes.White; // Mettre à jour la couleur de la cellule
-                    _currentGeneration[i, j] = _nextGeneration[i, j]; // Mettre à jour la génération actuelle
+                    var cell = (Border)GameGrid.Children[i * _cols + j];
+                    cell.Background = _currentGeneration[i, j] ? Brushes.Black : Brushes.White;
                 }
             }
-
-            _iterations++; // Incrémenter le compteur d'itérations
-            IterationCountText.Text = _iterations.ToString(); // Mettre à jour le texte affichant le nombre d'itérations
         }
 
-        // Méthode pour compter les voisins vivants d'une cellule
+        private void AddGenerationToHistory()
+        {
+            bool[,] generationCopy = new bool[_rows, _cols];
+            Array.Copy(_currentGeneration, generationCopy, _currentGeneration.Length);
+            _generationHistory.Add(generationCopy);
+        }
+
+        private void GenerationSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!_isGameRunning && _generationHistory.Count > 0)
+            {
+                int generationIndex = (int)e.NewValue;
+                if (generationIndex < _generationHistory.Count)
+                {
+                    _currentGeneration = _generationHistory[generationIndex];
+                    UpdateGrid();
+                    IterationCountText.Text = generationIndex.ToString();
+                }
+            }
+        }
+
+
+        // Compte les voisins vivants pour une cellule donnée
         private int CountLiveNeighbors(int row, int col)
         {
             int liveNeighbors = 0;
@@ -221,16 +292,16 @@ namespace WpfApp1
             {
                 for (int j = -1; j <= 1; j++)
                 {
-                    if (i == 0 && j == 0) continue;  // Ignorer la cellule elle-même
+                    if (i == 0 && j == 0) continue; // Ignore la cellule elle-même
                     int r = row + i;
                     int c = col + j;
-                    if (r >= 0 && r < _rows && c >= 0 && c < _cols) // Vérifier si le voisin est dans les limites de la grille
+                    if (r >= 0 && r < _rows && c >= 0 && c < _cols)
                     {
-                        if (_currentGeneration[r, c]) liveNeighbors++; // Compter le voisin s'il est vivant
+                        if (_currentGeneration[r, c]) liveNeighbors++;
                     }
                 }
             }
-            return liveNeighbors; // Retourner le nombre de voisins vivants
+            return liveNeighbors;
         }
     }
 }
