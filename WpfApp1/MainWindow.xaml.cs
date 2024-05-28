@@ -22,12 +22,10 @@ namespace WpfApp1
         private DispatcherTimer _timer; // Timer pour les itérations du jeu
         private int _iterations; // Compteur d'itérations
         private bool _isGameRunning; // Indicateur de l'état du jeu
-        private List<bool[,]> _generationHistory; // Liste pour stocker les générations
 
         public MainWindow()
         {
             InitializeComponent();
-            _generationHistory = new List<bool[,]>();
             try
             {
                 // Charge l'état initial depuis un fichier
@@ -153,24 +151,10 @@ namespace WpfApp1
         // Gestionnaire d'événement pour le bouton Play
         private void PlayButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_generationHistory.Count > 0)
-            {
-                int generationIndex = (int)GenerationSlider.Value;
-                if (generationIndex < _generationHistory.Count)
-                {
-                    _currentGeneration = _generationHistory[generationIndex];
-                    _iterations = generationIndex;
-                    IterationCountText.Text = _iterations.ToString();
-                    StartGame();
-                }
-            }
-            else
-            {
-                StartGame();
-            }
+            
+            IterationCountText.Text = _iterations.ToString();
+            StartGame();
         }
-
-
 
         // Gestionnaire d'événement pour le bouton Pause
         private void PauseButton_Click(object sender, RoutedEventArgs e)
@@ -178,7 +162,6 @@ namespace WpfApp1
             PauseGame();
         }
 
-        // Gestionnaire d'événement pour le bouton Load
         private void LoadButton_Click(object sender, RoutedEventArgs e)
         {
             PauseGame();
@@ -193,10 +176,6 @@ namespace WpfApp1
                     InitializeGrid();
                     _iterations = 0;
                     IterationCountText.Text = _iterations.ToString();
-                    _generationHistory.Clear(); // Effacer l'ancien historique des générations
-                    GenerationSlider.Value = 0; // Réinitialiser la valeur du slider
-                    AddGenerationToHistory(); // Ajouter l'état initial à l'historique
-                    GenerationSlider.Maximum = _generationHistory.Count - 1; // Mettre à jour le slider
                 }
                 catch (Exception ex)
                 {
@@ -204,7 +183,6 @@ namespace WpfApp1
                 }
             }
         }
-
 
         // Calcule la prochaine génération du jeu
         private void NextGeneration()
@@ -244,12 +222,9 @@ namespace WpfApp1
 
             Array.Copy(_nextGeneration, _currentGeneration, _currentGeneration.Length);
             UpdateGrid();
-            AddGenerationToHistory();
 
             _iterations++; // Incrémente le compteur d'itérations
             IterationCountText.Text = _iterations.ToString(); // Met à jour l'affichage du compteur
-            GenerationSlider.Value = _iterations;
-            GenerationSlider.Maximum = _iterations; // Mettre à jour le slider
         }
 
         private void UpdateGrid()
@@ -263,28 +238,6 @@ namespace WpfApp1
                 }
             }
         }
-
-        private void AddGenerationToHistory()
-        {
-            bool[,] generationCopy = new bool[_rows, _cols];
-            Array.Copy(_currentGeneration, generationCopy, _currentGeneration.Length);
-            _generationHistory.Add(generationCopy);
-        }
-
-        private void GenerationSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (!_isGameRunning && _generationHistory.Count > 0)
-            {
-                int generationIndex = (int)e.NewValue;
-                if (generationIndex < _generationHistory.Count)
-                {
-                    _currentGeneration = _generationHistory[generationIndex];
-                    UpdateGrid();
-                    IterationCountText.Text = generationIndex.ToString();
-                }
-            }
-        }
-
 
         // Compte les voisins vivants pour une cellule donnée
         private int CountLiveNeighbors(int row, int col)
