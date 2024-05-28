@@ -181,28 +181,30 @@ namespace WpfApp1
         // Gestionnaire d'événement pour le bouton Load
         private void LoadButton_Click(object sender, RoutedEventArgs e)
         {
-            PauseGame(); // Met le jeu en pause avant de charger un nouvel état
+            PauseGame();
 
             OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.Filter = "Text files (*.txt)|*.txt"; // Filtre les fichiers texte
+            openFileDialog.Filter = "Text files (*.txt)|*.txt";
             if (openFileDialog.ShowDialog() == true)
             {
                 try
                 {
-                    // Charge un nouvel état initial depuis un fichier
                     LoadInitialState(openFileDialog.FileName);
-                    // Réinitialise la grille UI
                     InitializeGrid();
-                    _iterations = 0; // Réinitialise le compteur d'itérations
+                    _iterations = 0;
                     IterationCountText.Text = _iterations.ToString();
+                    _generationHistory.Clear(); // Effacer l'ancien historique des générations
+                    GenerationSlider.Value = 0; // Réinitialiser la valeur du slider
+                    AddGenerationToHistory(); // Ajouter l'état initial à l'historique
+                    GenerationSlider.Maximum = _generationHistory.Count - 1; // Mettre à jour le slider
                 }
                 catch (Exception ex)
                 {
-                    // Affiche un message d'erreur si le chargement échoue
                     MessageBox.Show(ex.Message, "Erreur de chargement", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
+
 
         // Calcule la prochaine génération du jeu
         private void NextGeneration()
