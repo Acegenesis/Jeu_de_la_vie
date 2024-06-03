@@ -13,32 +13,35 @@ namespace WpfApp1
 {
     public partial class MainWindow : Window
     {
-        // Grilles pour stocker les générations actuelle et suivante
+        // Matrices generations
         private bool[,] _currentGeneration;
         private bool[,] _nextGeneration;
+
         private int _rows;
         private int _cols;
-        private const int CellSize = 20; // Taille d'une cellule en pixels
-        private DispatcherTimer _timer; // Timer pour les itérations du jeu
-        private int _iterations; // Compteur d'itérations
-        private bool _isGameRunning; // Indicateur de l'état du jeu
+
+        private DispatcherTimer _timer;
+        private int _iterations;
+        private bool _isGameRunning;
+
+        // Parametres du jeu
+        private const int _CellSize = 20;
+        private const int _Speed = 500;
+
 
         public MainWindow()
         {
             InitializeComponent();
             try
             {
-                // Charge l'état initial depuis un fichier
                 LoadInitialState("C:\\Users\\maxim\\OneDrive\\Bureau\\input.txt");
-                // Initialise la grille UI
+
                 InitializeGrid();
-                // Initialise le timer
                 InitializeTimer();
-                _isGameRunning = false; // Jeu initialement en pause
+                _isGameRunning = false; // Mettre en pause
             }
             catch (Exception ex)
             {
-                // Affiche un message d'erreur si le chargement échoue
                 MessageBox.Show(ex.Message, "Erreur de chargement", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -46,36 +49,39 @@ namespace WpfApp1
         // Charge l'état initial depuis un fichier
         private void LoadInitialState(string filePath)
         {
-            var lines = File.ReadAllLines(filePath); // Lit toutes les lignes du fichier
+            var lines = File.ReadAllLines(filePath);
 
-            // Vérifie si le fichier contient au moins deux lignes (une pour la taille et une pour la matrice)
+            // Check si fichier comporte au moins deux lignes
             if (lines.Length < 2)
             {
                 throw new Exception("Le fichier doit contenir au moins deux lignes.");
             }
 
-            // Sépare la première ligne en deux entiers représentant les dimensions de la grille
+            // Split la 1ere ligne en 2 entiers -> 2 dimensions
             var size = lines[0].Split(' ').Select(int.Parse).ToArray();
             if (size.Length != 2)
             {
                 throw new Exception("La première ligne du fichier doit contenir exactement deux entiers.");
             }
-
             _rows = size[0];
             _cols = size[1];
-            _currentGeneration = new bool[_rows, _cols]; // Initialise la grille de la génération actuelle
-            _nextGeneration = new bool[_rows, _cols]; // Initialise la grille de la prochaine génération
 
-            // Vérifie si le nombre de lignes dans le fichier correspond au nombre de lignes spécifié
+            // Initialise les generations
+            _currentGeneration = new bool[_rows, _cols];
+            _nextGeneration = new bool[_rows, _cols]; 
+
+            // Check si le fichier comporte le bon nombre de lignes
             if (lines.Length - 1 != _rows)
             {
                 throw new Exception("Le nombre de lignes spécifié ne correspond pas au nombre de lignes dans la matrice.");
             }
 
-            // Remplit la grille de la génération actuelle avec les données du fichier
+            // Utiliser fichier pour remplir la matrice
             for (int i = 0; i < _rows; i++)
             {
                 var line = lines[i + 1];
+
+                // Gestion des erreurs
                 if (line.Length != _cols)
                 {
                     throw new Exception($"La longueur de la ligne {i + 2} ne correspond pas au nombre de colonnes spécifié.");
@@ -83,72 +89,75 @@ namespace WpfApp1
 
                 for (int j = 0; j < _cols; j++)
                 {
+                    // Gestion des erreurs
                     if (line[j] != '0' && line[j] != '1')
                     {
                         throw new Exception($"La valeur à la ligne {i + 2}, colonne {j + 1} n'est pas valide (doit être '0' ou '1').");
                     }
+
                     _currentGeneration[i, j] = line[j] == '1';
                 }
             }
 
-            // Met à jour les textes des labels pour le nombre de lignes et de colonnes
+            // MAJ des textbox
             RowCountText.Text = _rows.ToString();
             ColCountText.Text = _cols.ToString();
         }
 
-        // Initialise la grille UI
         private void InitializeGrid()
         {
-            GameGrid.Rows = _rows; // Définit le nombre de lignes de la grille
-            GameGrid.Columns = _cols; // Définit le nombre de colonnes de la grille
-            GameGrid.Children.Clear(); // Vide la grille actuelle
+            // Def param grille
+            GameGrid.Rows = _rows; 
+            GameGrid.Columns = _cols;
+            GameGrid.Children.Clear();
 
-            // Remplit la grille avec des cellules initialisées selon l'état initial
+            // Remplir la grille
             for (int i = 0; i < _rows; i++)
             {
                 for (int j = 0; j < _cols; j++)
                 {
                     var cell = new Border
                     {
-                        Width = CellSize,
-                        Height = CellSize,
+                        Width = _CellSize,
+                        Height = _CellSize,
                         Background = _currentGeneration[i, j] ? Brushes.Black : Brushes.White,
                         BorderBrush = Brushes.Gray,
                         BorderThickness = new Thickness(0.5),
-                        Margin = new Thickness(1) // Ajoute un espace entre les cellules
+                        Margin = new Thickness(1)
                     };
-                    GameGrid.Children.Add(cell); // Ajoute la cellule à la grille
+
+                    GameGrid.Children.Add(cell);
                 }
             }
         }
 
-        // Initialise le timer pour les itérations du jeu
+        // Initialise timer
         private void InitializeTimer()
         {
             _timer = new DispatcherTimer();
-            _timer.Interval = TimeSpan.FromMilliseconds(500); // Définit l'intervalle entre les itérations
-            // Utilise le pattern Observer pour notifier l'événement `Tick`
+
+            // Intervalle entre les itérations
+            _timer.Interval = TimeSpan.FromMilliseconds(_Speed);
+
+            // Pattern Observer pour l'événement `Tick`
             _timer.Tick += (s, e) => NextGeneration();
         }
 
-        // Démarre le jeu
         private void StartGame()
         {
             if (!_isGameRunning)
             {
-                _timer.Start(); // Démarre le timer
-                _isGameRunning = true; // Met à jour l'état du jeu
+                _timer.Start();
+                _isGameRunning = true;
             }
         }
 
-        // Met le jeu en pause
         private void PauseGame()
         {
-            _timer.Stop(); // Arrête le timer
-            _isGameRunning = false; // Met à jour l'état du jeu
+            _timer.Stop();
+            _isGameRunning = false;
         }
 
-        // Gestionnaire d'événement pour le bouton Play
         private void PlayButton_Click(object sender, RoutedEventArgs e)
         {
             
@@ -156,7 +165,6 @@ namespace WpfApp1
             StartGame();
         }
 
-        // Gestionnaire d'événement pour le bouton Pause
         private void PauseButton_Click(object sender, RoutedEventArgs e)
         {
             PauseGame();
@@ -168,12 +176,14 @@ namespace WpfApp1
 
             OpenFileDialog openFileDialog = new OpenFileDialog();
             openFileDialog.Filter = "Text files (*.txt)|*.txt";
+
             if (openFileDialog.ShowDialog() == true)
             {
                 try
                 {
                     LoadInitialState(openFileDialog.FileName);
                     InitializeGrid();
+
                     _iterations = 0;
                     IterationCountText.Text = _iterations.ToString();
                 }
@@ -184,27 +194,25 @@ namespace WpfApp1
             }
         }
 
-        // Calcule la prochaine génération du jeu
         private void NextGeneration()
         {
-            bool isSameGeneration = true; // Indicateur si la génération est identique à la précédente
+            // Indicateur si generation i et i-1 sont identique
+            bool isSameGeneration = true; 
 
-            // Utilise le parallélisme pour améliorer les performances
+            // Utilise parallelisme
             Parallel.For(0, _rows, i =>
             {
                 for (int j = 0; j < _cols; j++)
                 {
-                    int liveNeighbors = CountLiveNeighbors(i, j); // Compte les voisins vivants
-                    if (_currentGeneration[i, j])
-                    {
+                    int liveNeighbors = CountLiveNeighbors(i, j);
+
+                    if (_currentGeneration[i, j]) {
                         _nextGeneration[i, j] = liveNeighbors == 2 || liveNeighbors == 3;
-                    }
-                    else
-                    {
+                    } else {
                         _nextGeneration[i, j] = liveNeighbors == 3;
                     }
 
-                    // Vérifie si la nouvelle génération est différente de l'actuelle
+                    // Check si generation i et i-1 sont identique pour une coordonnée
                     if (_nextGeneration[i, j] != _currentGeneration[i, j])
                     {
                         isSameGeneration = false;
@@ -212,7 +220,7 @@ namespace WpfApp1
                 }
             });
 
-            // Si la génération est la même que la précédente, arrête le jeu
+            // Check si generation i et i-1 sont identique
             if (isSameGeneration)
             {
                 PauseGame();
@@ -220,11 +228,12 @@ namespace WpfApp1
                 return;
             }
 
+            // copy _next -> _current
             Array.Copy(_nextGeneration, _currentGeneration, _currentGeneration.Length);
             UpdateGrid();
 
-            _iterations++; // Incrémente le compteur d'itérations
-            IterationCountText.Text = _iterations.ToString(); // Met à jour l'affichage du compteur
+            _iterations++;
+            IterationCountText.Text = _iterations.ToString();
         }
 
         private void UpdateGrid()
@@ -239,17 +248,20 @@ namespace WpfApp1
             }
         }
 
-        // Compte les voisins vivants pour une cellule donnée
         private int CountLiveNeighbors(int row, int col)
         {
             int liveNeighbors = 0;
+
             for (int i = -1; i <= 1; i++)
             {
                 for (int j = -1; j <= 1; j++)
                 {
-                    if (i == 0 && j == 0) continue; // Ignore la cellule elle-même
+                    // Ignore la celle actuelle
+                    if (i == 0 && j == 0) continue; 
+
                     int r = row + i;
                     int c = col + j;
+
                     if (r >= 0 && r < _rows && c >= 0 && c < _cols)
                     {
                         if (_currentGeneration[r, c]) liveNeighbors++;
